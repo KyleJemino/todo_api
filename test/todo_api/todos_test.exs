@@ -154,9 +154,9 @@ defmodule TodoApi.TodosTest do
     end
 
     test "able to move 1 position", %{todos: todos} do
-      %{id: second_id} = moving = Enum.at(todos, 1)
-      %{id: third_id, before_id: original_before_id} = moving = Enum.at(todos, 2)
-      %{id: fourth_id} = target = Enum.at(todos, 3)
+      %{id: second_id} = Enum.at(todos, 1)
+      %{id: third_id, before_id: original_before_id} = Enum.at(todos, 2)
+      %{id: fourth_id} = Enum.at(todos, 3)
 
       {:ok, updated_todos} = Todos.move_todo(third_id, fourth_id)
 
@@ -169,8 +169,8 @@ defmodule TodoApi.TodosTest do
     end
 
     test "returns error if moving to current position", %{todos: todos} do
-      %{id: third_id, before_id: original_before_id} = moving = Enum.at(todos, 3)
-      %{id: fourth_id} = target = Enum.at(todos, 2)
+      %{id: third_id} = Enum.at(todos, 3)
+      %{id: fourth_id} = Enum.at(todos, 2)
 
       assert {:error, "No change"} = Todos.move_todo(third_id, fourth_id)
     end
@@ -181,9 +181,9 @@ defmodule TodoApi.TodosTest do
       Enum.each(1..50, fn x ->
         target_index = rem(x, 10)
 
-        %{before_id: original_before_id} = moving_todo = Todos.get_todo!(moving_todo_id)
+        %{before_id: original_before_id} = Todos.get_todo!(moving_todo_id)
         maybe_next_todo = Todos.get_todo_by_params([before_id: moving_todo_id])
-        %{id: target_id} = target_todo = Enum.at(todos, target_index)
+        %{id: target_id} = Enum.at(todos, target_index)
         maybe_target_next_todo = Todos.get_todo_by_params([before_id: target_id])
 
         {:ok, updated_todos} = Todos.move_todo(moving_todo_id, target_id)
@@ -192,7 +192,6 @@ defmodule TodoApi.TodosTest do
 
         if not is_nil(maybe_target_next_todo) do
           maybe_target_next_todo = Enum.find(updated_todos, &(&1.id == maybe_target_next_todo.id))
-          moving_todo = Enum.find(updated_todos, &(&1.id == moving_todo_id))
 
           assert %Todo{before_id: ^moving_todo_id} = Enum.find(updated_todos, &(&1.id == maybe_target_next_todo.id))
         end
