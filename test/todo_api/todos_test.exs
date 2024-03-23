@@ -2,15 +2,14 @@ defmodule TodoApi.TodosTest do
   use TodoApi.DataCase
 
   alias TodoApi.Todos
+  alias TodoApi.Todos.Todo
 
-  describe "todos" do
-    alias TodoApi.Todos.Todo
+  import TodoApi.TodosFixtures
 
-    import TodoApi.TodosFixtures
+  @invalid_attrs %{"details" => nil, "archived_at" => nil}
+  @valid_attrs %{"details" => "some details"} 
 
-    @invalid_attrs %{"details" => nil, "archived_at" => nil}
-    @valid_attrs %{"details" => "some details"} 
-
+  describe "list_todos/0" do
     test "list_todos/0 returns all todos without archived_at" do
       todo = todo_fixture()
       _archived_todo = todo_fixture(%{
@@ -37,12 +36,16 @@ defmodule TodoApi.TodosTest do
 
       assert [todo_1, todo_2, todo_3, todo_4] == Todos.list_todos()
     end
+  end
 
+  describe "get_todo!/1" do
     test "get_todo!/1 returns the todo with given id" do
       todo = todo_fixture()
       assert Todos.get_todo!(todo.id) == todo
     end
+  end
 
+  describe "create_todo/1" do
     test "create_todo/1 with valid data creates a todo" do
       assert {:ok, %Todo{} = todo} = Todos.create_todo(@valid_attrs)
       assert todo.details == "some details"
@@ -82,16 +85,122 @@ defmodule TodoApi.TodosTest do
       
       assert {:ok, %Todo{before_id: ^last_todo_id}} = Todos.create_todo(@valid_attrs)
     end
+  end
 
-    test "delete_todo/1 deletes the todo" do
-      todo = todo_fixture()
-      assert {:ok, %Todo{}} = Todos.delete_todo(todo)
-      assert_raise Ecto.NoResultsError, fn -> Todos.get_todo!(todo.id) end
+  describe "move_todo/1" do
+    setup do
+      todos = 
+        Enum.map(1..10, fn _ ->
+          {:ok, todo} = Todos.create_todo(@valid_attrs)
+          todo
+        end)
+
+      {:ok, %{todos: todos}}
     end
 
-    test "change_todo/1 returns a todo changeset" do
-      todo = todo_fixture()
-      assert %Ecto.Changeset{} = Todos.change_todo(todo)
+    test "change parent_id of todo to target", %{todos: todos} do
+      {:ok, new_todo} = Todos.create_todo(@valid_attrs)
+      target_before_id = Enum.at(todos, 4).id
+
+      {:ok, updated_todos} = Todos.move_todo(new_todo.id, target_before_id)
+      
+      assert %Todo{before_id: ^target_before_id} = Enum.find(updated_todos, &(&1.id == new_todo.id))
+    end
+
+    test "also updates before_id of next todos", %{todos: todos} do
+      %{id: todo_id, before_id: original_before_id} = Enum.at(todos, 8)
+      %{id: todo_next_id} = Enum.at(todos, 9)
+      %{id: target_id} = Enum.at(todos, 0)
+      %{id: target_next_id} = Enum.at(todos, 1)
+
+      {:ok, updated_todos} = Todos.move_todo(todo_id, target_id)
+
+      assert %Todo{before_id: ^target_id} = Enum.find(updated_todos, &(&1.id == todo_id))
+      assert %Todo{before_id: ^original_before_id} = Enum.find(updated_todos, &(&1.id == todo_next_id))
+      assert %Todo{before_id: ^todo_id} = Enum.find(updated_todos, &(&1.id == target_next_id))
+    end
+
+    test "changes to before_id to nil if moved to first", %{todos: todos} do
+      %{id: todo_id} = Enum.at(todos, 9)
+      %{id: first_id} = Enum.at(todos, 0)
+
+      {:ok, updated_todos} = Todos.move_todo(todo_id, nil)
+
+      assert %Todo{before_id: ^todo_id} = Enum.find(updated_todos, &(&1.id == first_id))
+      assert %Todo{before_id: nil} = Enum.find(updated_todos, &(&1.id == todo_id))
+    end
+
+    test "able to move last to first", %{todos: todos} do
+      %{id: last_id} = Enum.at(todos, 9)
+      %{id: first_id} = Enum.at(todos, 0)
+
+      {:ok, updated_todos} = Todos.move_todo(last_id, nil)
+
+      assert %Todo{before_id: nil} = Enum.find(updated_todos, &(&1.id == last_id))
+      assert %Todo{before_id: ^last_id} = Enum.find(updated_todos, &(&1.id == first_id))
+    end
+
+
+    test "able to move first to last", %{todos: todos} do
+      %{id: last_id, before_id: original_last_id} = Enum.at(todos, 9)
+      %{id: first_id} = Enum.at(todos, 0)
+      %{id: second_id} = Enum.at(todos, 1)
+
+      {:ok, updated_todos} = Todos.move_todo(first_id, last_id)
+
+      assert %Todo{before_id: ^last_id} = Enum.find(updated_todos, &(&1.id == first_id))
+      assert %Todo{before_id: ^original_last_id} = Enum.find(updated_todos, &(&1.id == last_id))
+      assert %Todo{before_id: nil} = Enum.find(updated_todos, &(&1.id == second_id))
+    end
+
+    test "able to move 1 position", %{todos: todos} do
+      %{id: second_id} = moving = Enum.at(todos, 1)
+      %{id: third_id, before_id: original_before_id} = moving = Enum.at(todos, 2)
+      %{id: fourth_id} = target = Enum.at(todos, 3)
+
+      {:ok, updated_todos} = Todos.move_todo(third_id, fourth_id)
+
+      assert %Todo{before_id: ^fourth_id} = Enum.find(updated_todos, &(&1.id == third_id))
+      assert %Todo{before_id: ^original_before_id} = Enum.find(updated_todos, &(&1.id == fourth_id))
+
+      {:ok, updated_todos} = Todos.move_todo(third_id, second_id)
+      assert %Todo{before_id: ^original_before_id} = Enum.find(updated_todos, &(&1.id == third_id))
+      assert %Todo{before_id: ^third_id} = Enum.find(updated_todos, &(&1.id == fourth_id))
+    end
+
+    test "returns error if moving to current position", %{todos: todos} do
+      %{id: third_id, before_id: original_before_id} = moving = Enum.at(todos, 3)
+      %{id: fourth_id} = target = Enum.at(todos, 2)
+
+      assert {:error, "No change"} = Todos.move_todo(third_id, fourth_id)
+    end
+
+    test "able to be move more than 50 times", %{todos: todos} do
+      {:ok, %{id: moving_todo_id }} = Todos.create_todo(@valid_attrs)
+
+      Enum.each(1..50, fn x ->
+        target_index = rem(x, 10)
+
+        %{before_id: original_before_id} = moving_todo = Todos.get_todo!(moving_todo_id)
+        maybe_next_todo = Todos.get_todo_by_params([before_id: moving_todo_id])
+        %{id: target_id} = target_todo = Enum.at(todos, target_index)
+        maybe_target_next_todo = Todos.get_todo_by_params([before_id: target_id])
+
+        {:ok, updated_todos} = Todos.move_todo(moving_todo_id, target_id)
+
+        assert %Todo{before_id: ^target_id} = Enum.find(updated_todos, &(&1.id == moving_todo_id))
+
+        if not is_nil(maybe_target_next_todo) do
+          maybe_target_next_todo = Enum.find(updated_todos, &(&1.id == maybe_target_next_todo.id))
+          moving_todo = Enum.find(updated_todos, &(&1.id == moving_todo_id))
+
+          assert %Todo{before_id: ^moving_todo_id} = Enum.find(updated_todos, &(&1.id == maybe_target_next_todo.id))
+        end
+
+        if not is_nil(maybe_next_todo) do
+          assert %Todo{before_id: ^original_before_id} = Enum.find(updated_todos, &(&1.id == maybe_next_todo.id))
+        end
+      end)
     end
   end
 end

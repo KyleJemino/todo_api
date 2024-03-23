@@ -23,7 +23,7 @@ defmodule TodoApi.Todos do
     todo_root_query =
       Todo
       |> TQ.is_unarchived()
-      |> TQ.filter_where(%{"first?" => true})
+      |> TQ.filter_where(%{:first? => true})
       |> select([q, lt], %{id: q.id, before_id: q.before_id, path: fragment("ARRAY[?]", q.id), archived_at: q.archived_at})
 
     todo_recursion_query =
@@ -59,6 +59,12 @@ defmodule TodoApi.Todos do
 
   """
   def get_todo!(id), do: Repo.get!(Todo, id)
+
+  def get_todo_by_params(params) do
+    Todo 
+    |> TQ.filter_where(params)
+    |> Repo.one()
+  end
 
   @doc """
   Creates a todo.
@@ -113,15 +119,26 @@ defmodule TodoApi.Todos do
     Todo.changeset(todo, attrs)
   end
 
+  def move_todo(todo_id, target_before_id) do
+    result =
+      todo_id
+      |> move_multi(target_before_id)
+      |> Repo.transaction()
+
+    case result do
+      {:ok, %{all_todos: todos}} -> {:ok, todos}
+      {:error, _operation, error, _changes} -> {:error, error}
+    end
+  end
+
   defp create_multi(attrs) do
     Multi.new()
     |> Multi.one(:last_todo, fn _multi ->
       Todo
       |> TQ.is_unarchived()
       |> TQ.filter_where(%{
-        "last?" => true
+        :last? => true
       })
-      |> preload(:next)
     end)
     |> Multi.insert(:new_todo, fn %{last_todo: last_todo} ->
         maybe_attrs_with_before_id =
@@ -130,9 +147,93 @@ defmodule TodoApi.Todos do
           else
             Map.put(attrs, "before_id", last_todo.id)
           end
-
         
         Todo.create_changeset(%Todo{}, maybe_attrs_with_before_id)
+    end)
+  end
+
+  defp update_before_and_archive(todo, attrs) do
+    todo
+    |> Todo.temp_move_changeset(attrs)
+    |> Repo.update()
+  end
+
+  defp move_multi(todo_id, target_before_id) do
+    Multi.new()
+    |> Multi.run(:current_todo, fn repo, _multi ->
+      current_query =
+        Todo
+        |> TQ.is_unarchived()
+        |> TQ.filter_where(%{
+          :id => todo_id
+        })
+
+      case repo.one(current_query) do
+        %Todo{before_id: ^target_before_id} ->
+          {:error, "No change"}
+        %Todo{} = todo ->
+          {:ok, todo}
+        _ ->
+          {:error, "Something went wrong"}
+      end
+    end)
+    |> Multi.all(:todos, fn _multi ->
+      or_where_filters =
+        if is_nil(target_before_id) do
+          [
+            first?: true,
+            before_id: todo_id
+          ]
+        else
+          [
+            before_id: todo_id,
+            before_id: target_before_id
+          ]
+        end
+
+      Todo
+      |> TQ.filter_or_where(or_where_filters)
+      |> distinct(true)
+    end)
+    |> Multi.run(:updated_and_archived, 
+        fn _repo, %{todos: todos, current_todo: current_todo} ->
+          %{
+            before_id: original_before_id
+          } = current_todo
+
+          Enum.reduce([current_todo | todos], {:ok, []}, fn
+            todo, {:ok, todo_id_acc} -> 
+              attrs =
+                case todo do
+                  %{id: ^todo_id} ->
+                    %{"before_id" => target_before_id}
+                  %{before_id: ^todo_id} ->
+                    %{"before_id" => original_before_id}
+                  %{before_id: ^target_before_id} ->
+                    %{"before_id" => todo_id}
+                end
+
+              case update_before_and_archive(todo, attrs) do
+                {:ok, %{id: id}} -> {:ok, [id | todo_id_acc]}
+                error -> error
+              end
+
+            _todo, error -> error
+          end)
+        end
+    )
+    |> Multi.update_all(:updated_todos, 
+      fn %{updated_and_archived: todo_ids} ->
+        from(
+          t in Todo, 
+          where: fragment("?::TEXT", t.id) in ^todo_ids, 
+          update: [set: [archived_at: nil]]
+        )
+      end, 
+      []
+    )
+    |> Multi.all(:all_todos, fn %{updated_and_archived: todo_ids} ->
+      TQ.filter_where(Todo, %{:ids => todo_ids})
     end)
   end
 end

@@ -38,4 +38,10 @@ defmodule TodoApi.Todos.Todo do
       message: "has already been taken"
     )
   end
+
+  def temp_move_changeset(todo, attrs) do
+    todo
+    |> cast(attrs, [:before_id])
+    |> change(archived_at: DateTime.utc_now(:second))
+  end
 end
