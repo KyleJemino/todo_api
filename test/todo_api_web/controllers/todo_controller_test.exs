@@ -7,11 +7,9 @@ defmodule TodoApiWeb.TodoControllerTest do
 
   @create_attrs %{
     details: "some details",
-    archived_at: ~U[2024-03-21 16:20:00Z]
   }
   @update_attrs %{
     details: "some updated details",
-    archived_at: ~U[2024-03-22 16:20:00Z]
   }
   @invalid_attrs %{details: nil, archived_at: nil}
 
@@ -20,28 +18,39 @@ defmodule TodoApiWeb.TodoControllerTest do
   end
 
   describe "index" do
+    setup do
+      todos =
+        Enum.map(1..10, fn x ->
+          safe_todo_fixture(%{
+            "details" => "#{x}"
+          }) 
+        end)
+
+      {:ok, todos: todos}
+    end
+
     test "lists all todos", %{conn: conn} do
-      conn = get(conn, ~p"/api/todos")
-      assert json_response(conn, 200)["data"] == []
+      conn = get(conn, ~p"/todos")
+      todos_from_response = json_response(conn, 200)["data"]
+
+      assert Enum.count(todos_from_response) == 10
     end
   end
 
   describe "create todo" do
     test "renders todo when data is valid", %{conn: conn} do
-      conn = post(conn, ~p"/api/todos", todo: @create_attrs)
+      conn = post(conn, ~p"/todos", todo: @create_attrs)
+
       assert %{"id" => id} = json_response(conn, 201)["data"]
 
-      conn = get(conn, ~p"/api/todos/#{id}")
+      conn = get(conn, ~p"/todos")
+      todo_list = json_response(conn, 200)["data"]
 
-      assert %{
-               "id" => ^id,
-               "archived_at" => "2024-03-21T16:20:00Z",
-               "details" => "some details"
-             } = json_response(conn, 200)["data"]
+      assert Enum.any?(todo_list, &(&1["id"] == id)) 
     end
 
     test "renders errors when data is invalid", %{conn: conn} do
-      conn = post(conn, ~p"/api/todos", todo: @invalid_attrs)
+      conn = post(conn, ~p"/todos", todo: @invalid_attrs)
       assert json_response(conn, 422)["errors"] != %{}
     end
   end
@@ -49,21 +58,20 @@ defmodule TodoApiWeb.TodoControllerTest do
   describe "update todo" do
     setup [:create_todo]
 
-    test "renders todo when data is valid", %{conn: conn, todo: %Todo{id: id} = todo} do
-      conn = put(conn, ~p"/api/todos/#{todo}", todo: @update_attrs)
+    test "renders todo when data is valid", %{conn: conn, todo: %Todo{id: id}} do
+      conn = patch(conn, ~p"/todos/#{id}/edit", todo: @update_attrs)
       assert %{"id" => ^id} = json_response(conn, 200)["data"]
 
-      conn = get(conn, ~p"/api/todos/#{id}")
+      conn = get(conn, ~p"/todos")
+      todo_list = json_response(conn, 200)["data"]
 
       assert %{
-               "id" => ^id,
-               "archived_at" => "2024-03-22T16:20:00Z",
-               "details" => "some updated details"
-             } = json_response(conn, 200)["data"]
+        "details" => "some updated details"
+      } = Enum.find(todo_list, &(&1["id"] == id)) 
     end
 
     test "renders errors when data is invalid", %{conn: conn, todo: todo} do
-      conn = put(conn, ~p"/api/todos/#{todo}", todo: @invalid_attrs)
+      conn = patch(conn, ~p"/todos/#{todo}/edit", todo: @invalid_attrs)
       assert json_response(conn, 422)["errors"] != %{}
     end
   end
@@ -72,12 +80,13 @@ defmodule TodoApiWeb.TodoControllerTest do
     setup [:create_todo]
 
     test "deletes chosen todo", %{conn: conn, todo: todo} do
-      conn = delete(conn, ~p"/api/todos/#{todo}")
+      conn = delete(conn, ~p"/todos/#{todo}")
       assert response(conn, 204)
 
-      assert_error_sent 404, fn ->
-        get(conn, ~p"/api/todos/#{todo}")
-      end
+      conn = get(conn, ~p"/todos")
+      todo_list = json_response(conn, 200)["data"]
+
+      refute Enum.any?(todo_list, &(&1["id"] == todo.id)) 
     end
   end
 
