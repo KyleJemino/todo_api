@@ -16,8 +16,8 @@ defmodule TodoApiWeb.TodoController do
       {:ok, %Todo{} = todo} ->
         conn
         |> put_status(:created)
-        |> put_resp_header("location", ~p"/api/todos/#{todo}")
         |> render(:show, todo: todo)
+
       {:error, %Ecto.Changeset{} = changeset} ->
         {:error, changeset}
       _ ->
