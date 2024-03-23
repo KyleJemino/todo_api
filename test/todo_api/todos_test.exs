@@ -202,4 +202,31 @@ defmodule TodoApi.TodosTest do
       end)
     end
   end
+
+  describe "update_todo/2" do
+    setup do
+      todo = todo_fixture()
+
+      {:ok, todo: todo}
+    end
+
+    test "updates todo with valid attrs", %{todo: todo} do
+      %{details: original_details} = todo
+      {:ok, %{details: new_details}} = Todos.update_todo(todo, %{"details" => "new"})
+
+      assert original_details != new_details
+      assert new_details == "new"
+    end
+
+    test "updates todo with invalid attrs", %{todo: todo} do
+      assert {:error, %Ecto.Changeset{}} = Todos.update_todo(todo, %{"details" => nil})
+    end
+  end
+
+  test "arhive_todo/2 archives todo" do
+    todo = todo_fixture()
+    {:ok, %{archived_at: archived_at}} = Todos.archive_todo(todo)
+
+    assert not is_nil(archived_at)
+  end
 end

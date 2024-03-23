@@ -91,6 +91,24 @@ defmodule TodoApi.Todos do
   end
 
   @doc """
+  Updates a todo.
+
+  ## Examples
+
+      iex> update_todo(todo, %{field: new_value})
+      {:ok, %Todo{}}
+
+      iex> update_todo(todo, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_todo(%Todo{} = todo, attrs) do
+    todo
+    |> Todo.update_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
   Deletes a todo.
 
   ## Examples
@@ -129,6 +147,12 @@ defmodule TodoApi.Todos do
       {:ok, %{all_todos: todos}} -> {:ok, todos}
       {:error, _operation, error, _changes} -> {:error, error}
     end
+  end
+
+  def archive_todo(%Todo{} = todo) do
+    todo
+    |> Todo.archive_changeset()
+    |> Repo.update()
   end
 
   defp create_multi(attrs) do

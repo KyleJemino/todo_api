@@ -39,9 +39,19 @@ defmodule TodoApi.Todos.Todo do
     )
   end
 
+  def update_changeset(todo, attrs) do
+    todo
+    |> cast(attrs, [:details])
+    |> validate_required([:details])
+  end
+
   def temp_move_changeset(todo, attrs) do
     todo
     |> cast(attrs, [:before_id])
     |> change(archived_at: DateTime.utc_now(:second))
+  end
+
+  def archive_changeset(todo) do
+    change(todo, archived_at: DateTime.utc_now(:second))
   end
 end
