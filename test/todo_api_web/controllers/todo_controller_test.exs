@@ -18,16 +18,7 @@ defmodule TodoApiWeb.TodoControllerTest do
   end
 
   describe "index" do
-    setup do
-      todos =
-        Enum.map(1..10, fn x ->
-          safe_todo_fixture(%{
-            "details" => "#{x}"
-          }) 
-        end)
-
-      {:ok, todos: todos}
-    end
+    setup [:seed_todos]
 
     test "lists all todos", %{conn: conn} do
       conn = get(conn, ~p"/todos")
@@ -90,8 +81,33 @@ defmodule TodoApiWeb.TodoControllerTest do
     end
   end
 
+  describe "move todo" do
+    setup [:seed_todos]
+
+    test "moves todo", %{conn: conn, todos: todos} do
+      last_todo = Enum.at(todos, 9)
+      first_todo = Enum.at(todos, 0)
+
+      conn = patch(conn, ~p"/todos/#{last_todo}/move", target_before_id: first_todo.id)
+      todo_list = json_response(conn, 200)["data"]
+
+      assert Enum.find_index(todo_list, &(&1["id"] == last_todo.id)) == 1
+    end
+  end
+
   defp create_todo(_) do
     todo = todo_fixture()
     %{todo: todo}
+  end
+
+  defp seed_todos(_context) do
+      todos =
+        Enum.map(1..10, fn x ->
+          safe_todo_fixture(%{
+            "details" => "#{x}"
+          }) 
+        end)
+
+    %{todos: todos}
   end
 end
