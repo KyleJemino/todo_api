@@ -8,6 +8,7 @@ defmodule TodoApi.TodosFixtures do
   Generate a todo.
   """
 
+  alias TodoApi.Todos
   alias TodoApi.Todos.Todo
   alias TodoApi.Repo
 
@@ -22,6 +23,17 @@ defmodule TodoApi.TodosFixtures do
       %Todo{}
       |> Todo.changeset(updated_attrs)
       |> Repo.insert()
+
+    todo
+  end
+
+  def safe_todo_fixture(attrs \\ %{}) do
+    {:ok, todo} =
+      attrs
+      |> Enum.into(%{
+        "details" => "some details"
+      })
+      |> Todos.create_todo()
 
     todo
   end
