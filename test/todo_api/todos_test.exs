@@ -7,14 +7,16 @@ defmodule TodoApi.TodosTest do
   import TodoApi.TodosFixtures
 
   @invalid_attrs %{"details" => nil, "archived_at" => nil}
-  @valid_attrs %{"details" => "some details"} 
+  @valid_attrs %{"details" => "some details"}
 
   describe "list_todos/0" do
     test "list_todos/0 returns all todos without archived_at" do
       todo = todo_fixture()
-      _archived_todo = todo_fixture(%{
-        "archived_at" => DateTime.utc_now()
-      })
+
+      _archived_todo =
+        todo_fixture(%{
+          "archived_at" => DateTime.utc_now()
+        })
 
       todos = Todos.list_todos()
 
@@ -24,15 +26,21 @@ defmodule TodoApi.TodosTest do
 
     test "list_todos/0 returns all todos in correct order" do
       todo_1 = todo_fixture()
-      todo_2 = todo_fixture(%{
-        "before_id" => todo_1.id
-      })
-      todo_3 = todo_fixture(%{
-        "before_id" => todo_2.id
-      })
-      todo_4 = todo_fixture(%{
-        "before_id" => todo_3.id
-      })
+
+      todo_2 =
+        todo_fixture(%{
+          "before_id" => todo_1.id
+        })
+
+      todo_3 =
+        todo_fixture(%{
+          "before_id" => todo_2.id
+        })
+
+      todo_4 =
+        todo_fixture(%{
+          "before_id" => todo_3.id
+        })
 
       assert [todo_1, todo_2, todo_3, todo_4] == Todos.list_todos()
     end
@@ -59,7 +67,7 @@ defmodule TodoApi.TodosTest do
       _todo = todo_fixture()
       assert_raise MatchError, &todo_fixture/0
 
-      assert 1 == Enum.count(Todos.list_todos)
+      assert 1 == Enum.count(Todos.list_todos())
     end
 
     test "create_todo/1 only allows unique before_id" do
@@ -70,26 +78,28 @@ defmodule TodoApi.TodosTest do
       assert %Todo{before_id: ^todo_id} = todo_fixture(attr_with_before_id)
       assert_raise MatchError, fn -> todo_fixture(attr_with_before_id) end
 
-      assert 2 == Enum.count(Todos.list_todos)
+      assert 2 == Enum.count(Todos.list_todos())
     end
 
     test "create_todo/1 with archived_at ignores archived_at" do
       attrs_with_archived_at = %{details: "some details", archived_at: DateTime.utc_now()}
-      assert {:ok, %Todo{
-        archived_at: nil
-      }} = Todos.create_todo(attrs_with_archived_at)
+
+      assert {:ok,
+              %Todo{
+                archived_at: nil
+              }} = Todos.create_todo(attrs_with_archived_at)
     end
 
     test "create_todo/1 attaches last todo to new todo" do
       %Todo{id: last_todo_id} = todo_fixture()
-      
+
       assert {:ok, %Todo{before_id: ^last_todo_id}} = Todos.create_todo(@valid_attrs)
     end
   end
 
   describe "move_todo/1" do
     setup do
-      todos = 
+      todos =
         Enum.map(1..10, fn _ ->
           {:ok, todo} = Todos.create_todo(@valid_attrs)
           todo
@@ -103,8 +113,9 @@ defmodule TodoApi.TodosTest do
       target_before_id = Enum.at(todos, 4).id
 
       {:ok, updated_todos} = Todos.move_todo(new_todo.id, target_before_id)
-      
-      assert %Todo{before_id: ^target_before_id} = Enum.find(updated_todos, &(&1.id == new_todo.id))
+
+      assert %Todo{before_id: ^target_before_id} =
+               Enum.find(updated_todos, &(&1.id == new_todo.id))
     end
 
     test "also updates before_id of next todos", %{todos: todos} do
@@ -116,7 +127,10 @@ defmodule TodoApi.TodosTest do
       {:ok, updated_todos} = Todos.move_todo(todo_id, target_id)
 
       assert %Todo{before_id: ^target_id} = Enum.find(updated_todos, &(&1.id == todo_id))
-      assert %Todo{before_id: ^original_before_id} = Enum.find(updated_todos, &(&1.id == todo_next_id))
+
+      assert %Todo{before_id: ^original_before_id} =
+               Enum.find(updated_todos, &(&1.id == todo_next_id))
+
       assert %Todo{before_id: ^todo_id} = Enum.find(updated_todos, &(&1.id == target_next_id))
     end
 
@@ -140,7 +154,6 @@ defmodule TodoApi.TodosTest do
       assert %Todo{before_id: ^last_id} = Enum.find(updated_todos, &(&1.id == first_id))
     end
 
-
     test "able to move first to last", %{todos: todos} do
       %{id: last_id, before_id: original_last_id} = Enum.at(todos, 9)
       %{id: first_id} = Enum.at(todos, 0)
@@ -161,10 +174,15 @@ defmodule TodoApi.TodosTest do
       {:ok, updated_todos} = Todos.move_todo(third_id, fourth_id)
 
       assert %Todo{before_id: ^fourth_id} = Enum.find(updated_todos, &(&1.id == third_id))
-      assert %Todo{before_id: ^original_before_id} = Enum.find(updated_todos, &(&1.id == fourth_id))
+
+      assert %Todo{before_id: ^original_before_id} =
+               Enum.find(updated_todos, &(&1.id == fourth_id))
 
       {:ok, updated_todos} = Todos.move_todo(third_id, second_id)
-      assert %Todo{before_id: ^original_before_id} = Enum.find(updated_todos, &(&1.id == third_id))
+
+      assert %Todo{before_id: ^original_before_id} =
+               Enum.find(updated_todos, &(&1.id == third_id))
+
       assert %Todo{before_id: ^third_id} = Enum.find(updated_todos, &(&1.id == fourth_id))
     end
 
@@ -176,15 +194,15 @@ defmodule TodoApi.TodosTest do
     end
 
     test "able to be move more than 50 times", %{todos: todos} do
-      {:ok, %{id: moving_todo_id }} = Todos.create_todo(@valid_attrs)
+      {:ok, %{id: moving_todo_id}} = Todos.create_todo(@valid_attrs)
 
       Enum.each(1..50, fn x ->
         target_index = rem(x, 10)
 
         %{before_id: original_before_id} = Todos.get_todo!(moving_todo_id)
-        maybe_next_todo = Todos.get_todo_by_params([before_id: moving_todo_id])
+        maybe_next_todo = Todos.get_todo_by_params(before_id: moving_todo_id)
         %{id: target_id} = Enum.at(todos, target_index)
-        maybe_target_next_todo = Todos.get_todo_by_params([before_id: target_id])
+        maybe_target_next_todo = Todos.get_todo_by_params(before_id: target_id)
 
         {:ok, updated_todos} = Todos.move_todo(moving_todo_id, target_id)
 
@@ -193,11 +211,13 @@ defmodule TodoApi.TodosTest do
         if not is_nil(maybe_target_next_todo) do
           maybe_target_next_todo = Enum.find(updated_todos, &(&1.id == maybe_target_next_todo.id))
 
-          assert %Todo{before_id: ^moving_todo_id} = Enum.find(updated_todos, &(&1.id == maybe_target_next_todo.id))
+          assert %Todo{before_id: ^moving_todo_id} =
+                   Enum.find(updated_todos, &(&1.id == maybe_target_next_todo.id))
         end
 
         if not is_nil(maybe_next_todo) do
-          assert %Todo{before_id: ^original_before_id} = Enum.find(updated_todos, &(&1.id == maybe_next_todo.id))
+          assert %Todo{before_id: ^original_before_id} =
+                   Enum.find(updated_todos, &(&1.id == maybe_next_todo.id))
         end
       end)
     end
@@ -225,18 +245,18 @@ defmodule TodoApi.TodosTest do
 
   describe "archive_todo/2" do
     setup do
-      todos = 
+      todos =
         Enum.map(1..10, fn _ ->
           {:ok, todo} = Todos.create_todo(@valid_attrs)
           todo
         end)
-      
+
       {:ok, todos: todos}
     end
 
     test "archive_todo/2 archives middle todo", %{todos: todos} do
       todo = Enum.at(todos, 2)
-      
+
       assert Enum.count(Todos.list_todos()) == 10
 
       {:ok, %{archived_at: archived_at}} = Todos.archive_todo(todo)
@@ -247,7 +267,7 @@ defmodule TodoApi.TodosTest do
 
     test "arhive_todo/2 archives last todo", %{todos: todos} do
       todo = Enum.at(todos, 9)
-      
+
       assert Enum.count(Todos.list_todos()) == 10
 
       {:ok, %{archived_at: archived_at}} = Todos.archive_todo(todo)
@@ -259,7 +279,7 @@ defmodule TodoApi.TodosTest do
     test "arhive_todo/2 archives first todo", %{todos: todos} do
       assert %{before_id: nil} = todo = Enum.at(todos, 0)
       new_first_todo = Enum.at(todos, 0)
-      
+
       assert Enum.count(Todos.list_todos()) == 10
 
       {:ok, %{archived_at: archived_at}} = Todos.archive_todo(todo)

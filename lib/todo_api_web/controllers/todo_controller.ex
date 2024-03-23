@@ -20,6 +20,7 @@ defmodule TodoApiWeb.TodoController do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:error, changeset}
+
       _ ->
         conn
         |> put_status(500)
@@ -31,10 +32,12 @@ defmodule TodoApiWeb.TodoController do
     todo = Todos.get_todo!(id)
 
     case Todos.update_todo(todo, todo_params) do
-      {:ok, %Todo{} = todo} -> 
+      {:ok, %Todo{} = todo} ->
         render(conn, :show, todo: todo)
+
       {:error, %Ecto.Changeset{} = changeset} ->
         {:error, changeset}
+
       _ ->
         conn
         |> put_status(500)
@@ -46,7 +49,7 @@ defmodule TodoApiWeb.TodoController do
     todo = Todos.get_todo!(id)
 
     case Todos.archive_todo(todo) do
-      {:ok, %Todo{}} -> 
+      {:ok, %Todo{}} ->
         send_resp(conn, :no_content, "")
     end
   end
@@ -55,6 +58,7 @@ defmodule TodoApiWeb.TodoController do
     case Todos.move_todo(id, before_id) do
       {:ok, todos} ->
         render(conn, :index, todos: todos)
+
       _ ->
         conn
         |> put_status(500)

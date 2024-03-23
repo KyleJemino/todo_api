@@ -8,7 +8,7 @@ defmodule TodoApi.Todos.Todo do
   schema "todos" do
     field :details, :string
     field :archived_at, :utc_datetime
-    has_one :next, __MODULE__, foreign_key: :before_id 
+    has_one :next, __MODULE__, foreign_key: :before_id
     belongs_to :before, __MODULE__
 
     timestamps(type: :utc_datetime)

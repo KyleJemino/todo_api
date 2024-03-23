@@ -11,11 +11,13 @@ defmodule TodoApi.Repo.Migrations.CreateTodos do
       timestamps(type: :utc_datetime)
     end
 
-    create unique_index(:todos, [
-        "COALESCE(before_id::TEXT, 'NULL_VALUE')"
-      ],
-      where: "archived_at IS NULL",
-      name: :unique_before_id
-    )
+    create unique_index(
+             :todos,
+             [
+               "COALESCE(before_id::TEXT, 'NULL_VALUE')"
+             ],
+             where: "archived_at IS NULL",
+             name: :unique_before_id
+           )
   end
 end

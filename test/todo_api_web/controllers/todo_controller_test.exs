@@ -6,10 +6,10 @@ defmodule TodoApiWeb.TodoControllerTest do
   alias TodoApi.Todos.Todo
 
   @create_attrs %{
-    details: "some details",
+    details: "some details"
   }
   @update_attrs %{
-    details: "some updated details",
+    details: "some updated details"
   }
   @invalid_attrs %{details: nil, archived_at: nil}
 
@@ -37,7 +37,7 @@ defmodule TodoApiWeb.TodoControllerTest do
       conn = get(conn, ~p"/todos")
       todo_list = json_response(conn, 200)["data"]
 
-      assert Enum.any?(todo_list, &(&1["id"] == id)) 
+      assert Enum.any?(todo_list, &(&1["id"] == id))
     end
 
     test "renders errors when data is invalid", %{conn: conn} do
@@ -57,8 +57,8 @@ defmodule TodoApiWeb.TodoControllerTest do
       todo_list = json_response(conn, 200)["data"]
 
       assert %{
-        "details" => "some updated details"
-      } = Enum.find(todo_list, &(&1["id"] == id)) 
+               "details" => "some updated details"
+             } = Enum.find(todo_list, &(&1["id"] == id))
     end
 
     test "renders errors when data is invalid", %{conn: conn, todo: todo} do
@@ -77,7 +77,7 @@ defmodule TodoApiWeb.TodoControllerTest do
       conn = get(conn, ~p"/todos")
       todo_list = json_response(conn, 200)["data"]
 
-      refute Enum.any?(todo_list, &(&1["id"] == todo.id)) 
+      refute Enum.any?(todo_list, &(&1["id"] == todo.id))
     end
   end
 
@@ -101,12 +101,12 @@ defmodule TodoApiWeb.TodoControllerTest do
   end
 
   defp seed_todos(_context) do
-      todos =
-        Enum.map(1..10, fn x ->
-          safe_todo_fixture(%{
-            "details" => "#{x}"
-          }) 
-        end)
+    todos =
+      Enum.map(1..10, fn x ->
+        safe_todo_fixture(%{
+          "details" => "#{x}"
+        })
+      end)
 
     %{todos: todos}
   end
