@@ -5,8 +5,14 @@ defmodule TodoApiWeb.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/api", TodoApiWeb do
+  scope "/todos", TodoApiWeb do
     pipe_through :api
+
+    get "/", TodoController, :index
+    post "/", TodoController, :create
+    patch "/:id/edit", TodoController, :update
+    patch "/:id/move", TodoController, :move
+    delete "/:id", TodoController, :delete
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

@@ -144,7 +144,7 @@ defmodule TodoApi.Todos do
       |> Repo.transaction()
 
     case result do
-      {:ok, %{all_todos: todos}} -> {:ok, todos}
+      {:ok, _} -> {:ok, list_todos()}
       {:error, _operation, error, _changes} -> {:error, error}
     end
   end
@@ -256,8 +256,5 @@ defmodule TodoApi.Todos do
       end, 
       []
     )
-    |> Multi.all(:all_todos, fn %{updated_and_archived: todo_ids} ->
-      TQ.filter_where(Todo, %{:ids => todo_ids})
-    end)
   end
 end

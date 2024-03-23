@@ -12,32 +12,53 @@ defmodule TodoApiWeb.TodoController do
   end
 
   def create(conn, %{"todo" => todo_params}) do
-    with {:ok, %Todo{} = todo} <- Todos.create_todo(todo_params) do
-      conn
-      |> put_status(:created)
-      |> put_resp_header("location", ~p"/api/todos/#{todo}")
-      |> render(:show, todo: todo)
+    case Todos.create_todo(todo_params) do
+      {:ok, %Todo{} = todo} ->
+        conn
+        |> put_status(:created)
+        |> put_resp_header("location", ~p"/api/todos/#{todo}")
+        |> render(:show, todo: todo)
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:error, changeset}
+      _ ->
+        conn
+        |> put_status(500)
+        |> render("error.json")
     end
-  end
-
-  def show(conn, %{"id" => id}) do
-    todo = Todos.get_todo!(id)
-    render(conn, :show, todo: todo)
   end
 
   def update(conn, %{"id" => id, "todo" => todo_params}) do
     todo = Todos.get_todo!(id)
 
-    with {:ok, %Todo{} = todo} <- Todos.update_todo(todo, todo_params) do
-      render(conn, :show, todo: todo)
+    case Todos.update_todo(todo, todo_params) do
+      {:ok, %Todo{} = todo} -> 
+        render(conn, :show, todo: todo)
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:error, changeset}
+      _ ->
+        conn
+        |> put_status(500)
+        |> render("error.json")
     end
   end
 
   def delete(conn, %{"id" => id}) do
     todo = Todos.get_todo!(id)
 
-    with {:ok, %Todo{}} <- Todos.delete_todo(todo) do
-      send_resp(conn, :no_content, "")
+    case Todos.archive_todo(todo) do
+      {:ok, %Todo{}} -> 
+        send_resp(conn, :no_content, "")
+    end
+  end
+
+  def move(conn, %{"id" => id, "target_before_id" => before_id}) do
+    case Todos.move_todo(id, before_id) do
+      {:ok, todos} ->
+        render(conn, :index, todos: todos)
+      _ ->
+        conn
+        |> put_status(500)
+        |> render("error.json")
     end
   end
 end
