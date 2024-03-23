@@ -150,9 +150,17 @@ defmodule TodoApi.Todos do
   end
 
   def archive_todo(%Todo{} = todo) do
-    todo
-    |> Todo.archive_changeset()
-    |> Repo.update()
+    result =
+      todo
+      |> archive_multi()
+      |> Repo.transaction()
+
+    case result do
+      {:ok, %{archive_todo: todo}} -> {:ok, todo}
+      {:error, _, _, _} = errors -> 
+        IO.inspect errors
+        {:error, "Something went wrong"}
+    end
   end
 
   defp create_multi(attrs) do
@@ -161,7 +169,7 @@ defmodule TodoApi.Todos do
       Todo
       |> TQ.is_unarchived()
       |> TQ.filter_where(%{
-        :last? => true
+        last?: true
       })
     end)
     |> Multi.insert(:new_todo, fn %{last_todo: last_todo} ->
@@ -256,5 +264,28 @@ defmodule TodoApi.Todos do
       end, 
       []
     )
+  end
+  
+  def archive_multi(todo) do
+    Multi.new()
+    |> Multi.update(:archive_todo, Todo.archive_changeset(todo))
+    |> Multi.one(:next_todo, fn _multi ->
+        Todo
+        |> TQ.is_unarchived()
+        |> TQ.filter_where(%{
+          before_id: todo.id
+        })
+    end)
+    |> Multi.run(:maybe_update_next, fn repo, %{next_todo: next_todo} ->
+      if not is_nil(next_todo) do
+        next_todo
+        |> Todo.archive_next_changeset(%{
+          "before_id" => todo.before_id
+        })
+        |> repo.update()
+      else
+        {:ok, "Nothing to update"}
+      end
+    end)
   end
 end

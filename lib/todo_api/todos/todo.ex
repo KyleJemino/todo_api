@@ -54,4 +54,8 @@ defmodule TodoApi.Todos.Todo do
   def archive_changeset(todo) do
     change(todo, archived_at: DateTime.utc_now(:second))
   end
+
+  def archive_next_changeset(todo, attrs) do
+    cast(todo, attrs, [:before_id])
+  end
 end

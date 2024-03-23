@@ -223,10 +223,49 @@ defmodule TodoApi.TodosTest do
     end
   end
 
-  test "arhive_todo/2 archives todo" do
-    todo = todo_fixture()
-    {:ok, %{archived_at: archived_at}} = Todos.archive_todo(todo)
+  describe "archive_todo/2" do
+    setup do
+      todos = 
+        Enum.map(1..10, fn _ ->
+          {:ok, todo} = Todos.create_todo(@valid_attrs)
+          todo
+        end)
+      
+      {:ok, todos: todos}
+    end
 
-    assert not is_nil(archived_at)
+    test "archive_todo/2 archives middle todo", %{todos: todos} do
+      todo = Enum.at(todos, 2)
+      
+      assert Enum.count(Todos.list_todos()) == 10
+
+      {:ok, %{archived_at: archived_at}} = Todos.archive_todo(todo)
+
+      assert not is_nil(archived_at)
+      assert Enum.count(Todos.list_todos()) == 9
+    end
+
+    test "arhive_todo/2 archives last todo", %{todos: todos} do
+      todo = Enum.at(todos, 9)
+      
+      assert Enum.count(Todos.list_todos()) == 10
+
+      {:ok, %{archived_at: archived_at}} = Todos.archive_todo(todo)
+
+      assert not is_nil(archived_at)
+      assert Enum.count(Todos.list_todos()) == 9
+    end
+
+    test "arhive_todo/2 archives first todo", %{todos: todos} do
+      assert %{before_id: nil} = todo = Enum.at(todos, 0)
+      new_first_todo = Enum.at(todos, 0)
+      
+      assert Enum.count(Todos.list_todos()) == 10
+
+      {:ok, %{archived_at: archived_at}} = Todos.archive_todo(todo)
+
+      assert not is_nil(archived_at)
+      assert %{before_id: nil} = Todos.get_todo!(new_first_todo.id)
+    end
   end
 end
